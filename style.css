@@ -644,7 +644,8 @@ dialog::backdrop { background:transparent;backdrop-filter:none; }
 }
 .map-content::-webkit-scrollbar { display:none; }
 .map-chapter,.chapter-banner>div,.level-card { min-width:0; }
-.chapter-banner h2 { font-size:clamp(.89rem,6.6cqw,1.55rem); overflow-wrap:anywhere; }
+.chapter-banner h2 { font-size:clamp(.85rem,6.15cqw,1.44rem); overflow-wrap:anywhere; }
+.chapter-banner .chapter-mark { width:clamp(34px,18.5cqw,78px); font-size:clamp(1.6rem,10.6cqw,3.3rem); }
 .chapter-tabs,.level-grid { grid-template-columns:repeat(5,minmax(0,1fr)); }
 .device-screen .secondary-menu .button { min-width:0; font-size:clamp(.62rem,3.55cqw,.78rem); gap:6px; padding-inline:6px; }
 .device-screen .secondary-menu small { font-size:clamp(.58rem,3cqw,.68rem); }
