@@ -134,7 +134,20 @@
     return { state, hints };
   }
 
-  const api = { compile, key, search, trace, letter, isPinned, isSpark, isWall };
+  function movesBudget(level) {
+    const reference = level.solution.length;
+    const chapter = Math.floor((level.id-1)/10);
+    const reserve = Math.max(3,Math.ceil(reference * [.8,.55,.43,.34,.28][chapter]));
+    return { reference, limit: reference + reserve };
+  }
+
+  function rateMoves(moves,budget) {
+    const { reference,limit } = budget;
+    const percent = Math.round(100 * Math.max(0,Math.min(1,(limit-moves)/(limit-reference))));
+    return { percent, tier: percent >= 85 ? 3 : percent >= 50 ? 2 : 1 };
+  }
+
+  const api = { compile, key, search, trace, letter, isPinned, isSpark, isWall, movesBudget, rateMoves };
   if (typeof module !== 'undefined') module.exports = api;
   else root.CubeEngine = api;
 })(globalThis);

@@ -230,7 +230,7 @@ button { touch-action: manipulation; }
 .board-grid { display:grid; grid-template-columns:repeat(var(--cols),minmax(0,1fr)); gap:10px 8px; position:relative; padding-bottom:4px; user-select:none; }
 .cell {
   min-width:0; width:100%; aspect-ratio:1; display:grid; place-items:center; padding:0; position:relative;
-  border-radius:clamp(8px,3.1vw,15px); border:1px solid transparent; touch-action:none;
+  border-radius:clamp(8px,3.1vw,15px); border:1px solid transparent; touch-action:manipulation;
 }
 .tile, .fx {
   color:#2c2040; font:750 clamp(1.32rem,7.4vw,2.45rem)/1 var(--display); text-shadow:0 1px #ffffff8a;
@@ -459,20 +459,9 @@ body {
   padding-top:5px;
 }
 .game-content.multi-floor { --room: 246px; }
-.game-goals { display:flex; gap:6px; min-height:38px; flex:none; }
-.goal-toggle,.spark-meter {
-  border:1px solid #625081;
-  border-radius:11px;
-  background:#352a55;
-  padding:5px 8px;
-}
-.goal-toggle { display:flex; justify-content:space-between; align-items:center; flex:1; gap:6px; min-width:0; text-align:left; }
-.goal-toggle b { white-space:nowrap; font-size:.82rem; }
-.goal-toggle b span { color:var(--lime); }
-.quick-words { display:flex; gap:4px; justify-content:flex-end; min-width:0; }
-.quick-words span { font-size:.7rem; font-weight:720; color:#eee4ff; }
-.quick-words .found { text-decoration:line-through; color:#a6ba8c; }
-.word-chevron { color:#dac3fa; }
+.game-goals { display:flex; justify-content:flex-end; min-height:32px; flex:none; }
+.spark-meter { border:1px solid #625081; border-radius:11px; background:#352a55; padding:5px 8px; }
+.layer-tab.layer-candidate { border-color:var(--lime); }
 .spark-meter { display:flex; gap:2px; align-items:center; flex:none; color:#71628d; }
 .spark-meter i { font-size:.78rem; font-style:normal; }
 .spark-meter i.lit { color:#ffe294; text-shadow:0 0 7px #dd9544; }
@@ -603,7 +592,7 @@ dialog::backdrop { background:transparent;backdrop-filter:none; }
   .game-content.compact-game { --room:162px;gap:4px; }
   .game-content.multi-floor { --room:221px; }
   .game-goals { min-height:32px; }
-  .goal-toggle b,.spark-meter i { font-size:.68rem; }
+  .spark-meter i { font-size:.68rem; }
   .spark-meter { padding-inline:5px; }
   .game-content .board-chassis { padding:5px;border-radius:12px; }
   .game-content .board-grid { gap:4px; }
@@ -635,3 +624,38 @@ dialog::backdrop { background:transparent;backdrop-filter:none; }
   .game-content.compact-game .guide { font-size:.63rem; }
   .game-content.compact-game .game-tools button { min-height:28px; }
 }
+
+.device-screen .app { overflow-x:hidden; }
+.device-screen .app[data-screen=map] {
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+.device-screen .app[data-screen=map] .subbar { flex:none; margin-bottom:10px; }
+.map-content {
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  min-width:0;
+  min-height:0;
+  flex:1;
+  overflow:hidden auto;
+  scrollbar-width:none;
+  padding:0 3px 12px;
+}
+.map-content::-webkit-scrollbar { display:none; }
+.map-chapter,.chapter-banner>div,.level-card { min-width:0; }
+.chapter-banner h2 { font-size:clamp(.89rem,6.6cqw,1.55rem); overflow-wrap:anywhere; }
+.chapter-tabs,.level-grid { grid-template-columns:repeat(5,minmax(0,1fr)); }
+.device-screen .secondary-menu .button { min-width:0; font-size:clamp(.62rem,3.55cqw,.78rem); gap:6px; padding-inline:6px; }
+.device-screen .secondary-menu small { font-size:clamp(.58rem,3cqw,.68rem); }
+.move-count { display:grid; justify-items:end; line-height:1.05; gap:2px; }
+.move-count small { font-size:.66rem; }
+.move-count b { color:var(--ink); font-size:.94rem; }
+.rating { display:grid; gap:5px; text-align:left; }
+.rating-label,.rating-ends { display:flex; justify-content:space-between; align-items:center; gap:6px; }
+.rating-label { font-weight:650; font-size:.76rem; }
+.rating-label strong { color:var(--lime); font-size:1rem; }
+.rating-track { height:10px; border:1px solid #71648c; background:#211a37; border-radius:9px; overflow:hidden; }
+.rating-track span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#e9a46d,#ffd786,#cffa8e); transform-origin:left; animation:rating-fill 530ms cubic-bezier(.18,.74,.25,1) both; }
+.rating-ends { font-size:.62rem; color:var(--muted); }
+@keyframes rating-fill { from { transform:scaleX(0); } to { transform:scaleX(1); } }

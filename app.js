@@ -3,8 +3,6 @@
 
   const E = window.CubeEngine;
   const campaigns = window.CubeCampaigns;
-  const previousLevels = window.CubeLevels;
-  const legacyLevels = window.CubeLegacyLevels || [];
   const app = document.querySelector('#app');
   const dialog = document.querySelector('#dialog');
   const deviceScreen = dialog.parentElement;
@@ -49,8 +47,6 @@
   let hintMove = null;
   let message = '';
   let busy = false;
-  let pointer = null;
-  let ignoreClickUntil = 0;
   let pendingLevel = null;
   let audio = null;
 
@@ -64,7 +60,10 @@
         const item = raw.scores?.[level.id];
         if (item && Number.isInteger(item.stars) && item.stars >= 1 && item.stars <= 3 && Number.isInteger(item.moves) && item.moves >= 1) scores[level.id] = item;
       }
-      const active = raw.active && Number.isInteger(raw.active.id) && levels[raw.active.id - 1] && Array.isArray(raw.active.moves) ? raw.active : null;
+      let active = raw.active && Number.isInteger(raw.active.id) && levels[raw.active.id-1] && Array.isArray(raw.active.moves) ? raw.active : null;
+      if (active && active.layout !== levels[active.id-1].revision) {
+        active = { id:active.id, layout:levels[active.id-1].revision, moves:[], bonus:active.bonus };
+      }
       return { ...initial, scores, active, sound: raw.sound !== false,
         palette: palettes.some(p => p.color === raw.palette) ? raw.palette : 'violet',
         sparks: Number.isInteger(raw.sparks) && raw.sparks >= 0 ? raw.sparks : 0,
@@ -189,8 +188,12 @@
   function jumpChapter(index) {
     const heading = app.querySelector('#chapter-' + index);
     if (!heading) return;
-    heading.focus({ preventScroll: true });
-    heading.closest('.map-chapter').scrollIntoView({ block:'start', behavior:reducedMotion.matches ? 'instant' : 'smooth' });
+    const scroller = app.querySelector('.map-content');
+    const tabs = scroller.querySelector('.chapter-tabs');
+    const section = heading.closest('.map-chapter');
+    const y = scroller.scrollTop + section.getBoundingClientRect().top - scroller.getBoundingClientRect().top - tabs.offsetHeight - 8;
+    heading.focus({ preventScroll:true });
+    scroller.scrollTo({ top:y, left:0, behavior:reducedMotion.matches ? 'instant' : 'smooth' });
   }
 
   function renderPalettes() {
@@ -204,10 +207,8 @@
       }).join('') + '</div></section>';
   }
 
-  function buildGame(id, resume, layout) {
-    const revision = layout ?? resume?.layout ?? (resume ? 1 : 3);
-    const earlier = revision === 1 ? legacyLevels : revision === 2 ? previousLevels : [];
-    const level = (language === 'ru' && earlier[id-1]) || levels[id-1];
+  function buildGame(id,resume) {
+    const level = levels[id-1];
     const engine = E.compile(level);
     const history = [{ board: level.board, found: [] }];
     const moves = [];
@@ -227,7 +228,7 @@
     }
     const savedLayer = resume?.layer;
     const layer = Number.isInteger(savedLayer) && savedLayer >= 0 && savedLayer < level.d ? savedLayer : engine.xyz(level.board.indexOf(''))[2];
-    return { level, engine, history, moves, hints: Math.max(0, Number(resume?.hints) || 0), layer, bonus, solved: false, result: null, trace: null };
+    return { level, engine, budget:E.movesBudget(level), history, moves, hints: Math.max(0, Number(resume?.hints) || 0), layer, bonus, solved: false, result: null, trace: null };
   }
 
   function saveGame() {
@@ -237,7 +238,7 @@
     save();
   }
 
-  function openLevel(id, force = false, layout) {
+  function openLevel(id, force = false, restart = false) {
     if (!unlocked(id)) return;
     const current = profile.active;
     if (!force && current?.id !== id && current?.moves.length) {
@@ -247,9 +248,9 @@
         buttonHTML('confirm-level',L('Открыть уровень','Open level')) + buttonHTML('close',L('Отмена','Cancel'),'secondary'));
       return;
     }
-    const resume = current?.id === id && (force ? layout ? { bonus:current.bonus } : null : current.moves.length || current.layout === 3 ? current : null);
-    game = buildGame(id, resume, layout);
-    if (!game.bonus && !layout && profile.bonus && game.level.revision === 3 && id >= 30 &&
+    const resume = current?.id === id ? (restart ? { bonus:current.bonus } : force ? null : current) : null;
+    game = buildGame(id,resume);
+    if (!game.bonus && !restart && profile.bonus && id >= 30 &&
         (profile.bonus !== 'break' || game.level.board.some(E.isWall))) {
       game.bonus = profile.bonus;
       profile.bonus = null;
@@ -260,10 +261,9 @@
     combo = 0;
     bonusMode = false;
     busy = false;
-    pointer = null;
-    ignoreClickUntil = 0;
     saveGame();
     go('game');
+    if (exhausted()) showExhausted();
   }
 
   function switchLanguage(next) {
@@ -287,6 +287,8 @@
   }
 
   function currentState() { return game.history.at(-1); }
+  function movesLeft() { return Math.max(0,game.budget.limit-game.moves.length); }
+  function exhausted() { return !game.solved && movesLeft() === 0; }
   const ruleTips = {
     combo: ['Комбо','Собери по слову двумя ходами подряд.','Combo','Complete a word on two moves in a row.'],
     pinned: ['Закреплённая буква','Собери слово вокруг буквы с замком. Она сгорит вместе со словом.','Pinned letter','Build a word around the locked letter. It clears with the word.'],
@@ -310,11 +312,17 @@
 
   function lesson() {
     const { level:l } = game;
-    if (l.intro && (language === 'ru' || l.revision === 3)) return l.intro;
+    if (l.id <= 2) {
+      const letter = E.letter(l.board[l.solution[0][0]]);
+      return L('Нажми на «' + letter + '», затем на пустую клетку. Получится «' + l.words[0] + '».',
+        'Tap ' + letter + ', then the empty cell to make ' + l.words[0] + '.');
+    }
+    if (l.id === 11) return L('Выбери букву, открой соседний этаж и нажми на подсвеченную клетку.',
+      'Select a letter, open the next floor, then tap the highlighted cell.');
+    if (l.intro) return l.intro;
     const tip = ruleTip(l.mechanic);
     if (tip) return '<b>' + tip[0] + '</b> ' + tip[1];
     if (l.id === 3) return L('Собери оба слова. Освободившиеся клетки помогут со следующим ходом.','Complete both words. The empty cells give you room for your next move.');
-    if (l.id === 11) return L('Выбери кубик, затем «Выше» или «Ниже», чтобы сдвинуть его на соседний этаж.','Select a cube, then tap Up or Down to move it to an empty cell on the next floor.');
     return '';
   }
 
@@ -341,28 +349,22 @@
     const { board, found } = currentState();
     const offset = layer * engine.plane;
     const cells = board.slice(offset, offset + engine.plane);
-    const selectedHere = selected !== null && engine.xyz(selected)[2] === layer;
     const canShift = to => selected !== null && engine.legal(board,selected,to);
-    const firstCue = l.id <= 2 && !game.moves.length && !message ? l.solution[0] : null;
+    const firstCue = l.id <= 2 && !game.moves.length ? l.solution[0] : null;
     const cue = hintMove || firstCue;
     const feature = l.mechanic && !game.history.some(state => l.mechanic === 'fragile' ? state.broken?.length :
       l.mechanic === 'lift' ? state.port : l.mechanic === 'spark' ? state.spark :
       l.mechanic === 'pinned' ? !state.board.some(E.isPinned) : false);
     const currentLesson = !game.moves.length || (feature && ['lift','spark'].includes(l.mechanic)) ? lesson() : '';
-    const guide = message || currentLesson || (selectedHere ? L('Выбери соседнюю пустую клетку.','Choose an adjacent empty cell.') :
-      L('Сдвинь букву в соседнюю пустую клетку.','Slide a letter into an adjacent empty cell.'));
+    const guide = message || currentLesson || L('Выбери букву, затем пустую клетку.','Tap a letter, then an empty cell.');
     const size = l.w + '×' + l.h + (l.d > 1 ? '×' + l.d : '');
     const levelName = L('Уровень ','Level ') + l.id;
     const gameTop = '<header class="topbar game-top">' + iconButton('home',L('Главное меню','Main menu'),'back') +
       '<div class="top-title"><strong>' + levelName + '</strong><small>' + size + '</small></div>' +
-      '<div class="game-right"><span class="move-count">' + game.moves.length + ' ' + moveWord(game.moves.length) + '</span>' +
+      '<div class="game-right"><span class="move-count" aria-label="' + L('Осталось ходов ','Moves left ') + movesLeft() + '">' +
+      '<small>' + L('Осталось','Moves left') + '</small><b>' + movesLeft() + '</b></span>' +
       iconButton('pause',L('Пауза','Pause'),'more') + '</div></header>';
-    const compact = l.words.length <= 3 ? '<span class="quick-words">' + l.words.map(word =>
-      '<span class="' + (found.includes(word) ? 'found' : '') + '">' + word + '</span>').join(' ') + '</span>' : '';
-    const goals = '<section class="game-goals"><button type="button" class="goal-toggle" data-action="words">' +
-      '<b>' + L('Слова','Words') + ' <span>' + found.length + '/' + l.words.length + '</span></b>' + compact +
-      '<span class="word-chevron" aria-hidden="true">⌄</span></button>' +
-      ((l.id >= 29 && l.revision === 3) ? sparkMeter() : '') + '</section>';
+    const sparks = l.id >= 29 ? '<section class="game-goals">' + sparkMeter() + '</section>' : '';
     const layers = l.d > 1 ? '<div class="layer-tabs many-layers" role="group" aria-label="' + L('Этажи куба','Cube floors') + '">' +
       Array.from({ length:l.d }, (_,i) => {
         const start = i * engine.plane;
@@ -370,8 +372,9 @@
         const featureHere = feature && content.some(value => (l.mechanic === 'spark' && E.isSpark(value)) ||
           (l.mechanic === 'pinned' && E.isPinned(value)) || (l.mechanic === 'fragile' && value === '%'));
         const highlight = cue?.some(cell => engine.xyz(cell)[2] === i) || featureHere ? ' layer-hint' : '';
+        const available = selected !== null && engine.neighbors[selected].some(cell => engine.xyz(cell)[2] === i && canShift(cell));
         const hasLift = [...engine.lift.keys()].some(cell => engine.xyz(cell)[2] === i);
-        return '<button class="layer-tab' + highlight + '" data-action="layer" data-index="' + i + '" aria-pressed="' + (layer === i) +
+        return '<button class="layer-tab' + highlight + (available && i !== layer ? ' layer-candidate' : '') + '" data-action="layer" data-index="' + i + '" aria-pressed="' + (layer === i) +
           '" aria-label="' + L('Этаж ','Floor ') + (i+1) + '"><span class="mini-grid" aria-hidden="true" style="--mini-w:' + l.w + '">' +
           content.map(c => '<i class="' + (E.isWall(c) ? 'mini-stone' : c ? 'mini-filled' : '') + '"></i>').join('') +
           '</span><b>' + (i+1) + '</b>' + (hasLift ? '<span class="layer-lift" aria-hidden="true">↕</span>' : '') + '</button>';
@@ -388,7 +391,7 @@
           (l.mechanic === 'lift' && port) || (l.mechanic === 'spark' && E.isSpark(value)));
         const classes = ['cell',tile ? 'tile tile-' + letterColor(letter) : wall ? 'stone' : 'vacant',
           engine.canMove(value) && engine.neighbors[id].some(n => board[n] === '') ? 'movable' : '',
-          id === selected ? 'selected' : '', canShift(id) ? 'candidate' : '', cue?.[0] === id ? 'hint-from' : '', cue?.[1] === id ? 'hint-to' : '',
+          id === selected ? 'selected' : '', canShift(id) ? 'candidate' : '', cue?.[0] === id && selected !== id ? 'hint-from' : '', cue?.[1] === id && selected === cue[0] ? 'hint-to' : '',
           E.isPinned(value) ? 'pinned' : '', value === '%' ? 'fragile' : '', E.isSpark(value) ? 'spark-tile' : '',
           port ? 'lift-port' : '', demoMarker ? 'learn-item' : '',
           bonusMode && (game.bonus === 'break' ? wall : selected !== null && engine.canSwap(board, selected, id)) ? 'bonus-target' : '',
@@ -404,14 +407,12 @@
           (port ? '<i class="lift-mark" aria-hidden="true">↕' + destination + '</i>' : '') + '</button>';
       }).join('') + '<div class="effects" aria-hidden="true"></div></div>' +
       (combo > 1 ? '<div class="combo-pop" aria-live="polite">' + L('КОМБО','COMBO') + ' ×' + combo + '</div>' : '') + '</div>';
-    const below = layer > 0 && selectedHere ? selected - engine.plane : -1;
-    const above = layer + 1 < l.d && selectedHere ? selected + engine.plane : -1;
-    const transfer = l.d > 1 ? '<div class="depth-controls" aria-label="' + L('Сдвиг между этажами','Move between floors') + '">' +
-      '<button class="depth" data-action="transfer" data-index="' + below + '"' + (canShift(below) ? '' : ' disabled') + '>' + icon('down') + ' ' + L('Ниже','Down') + '</button>' +
-      '<span>' + L('Этаж ','Floor ') + (layer+1) + ' / ' + l.d + '</span><button class="depth" data-action="transfer" data-index="' + above + '"' +
-      (canShift(above) ? '' : ' disabled') + '>' + icon('up') + ' ' + L('Выше','Up') + '</button></div>' : '';
+    const transfer = l.d > 1 ? '<div class="depth-controls" aria-label="' + L('Перейти на другой этаж','Browse floors') + '">' +
+      '<button class="depth" data-action="layer" data-index="' + (layer-1) + '"' + (layer === 0 ? ' disabled' : '') + '>' + icon('down') + ' ' + L('Ниже','Down') + '</button>' +
+      '<span>' + L('Этаж ','Floor ') + (layer+1) + ' / ' + l.d + '</span><button class="depth" data-action="layer" data-index="' + (layer+1) + '"' +
+      (layer+1 === l.d ? ' disabled' : '') + '>' + icon('up') + ' ' + L('Выше','Up') + '</button></div>' : '';
     app.innerHTML = gameTop + '<div class="game-content compact-game' + (l.d > 1 ? ' multi-floor' : '') +
-      '" data-level="' + l.id + '">' + goals + '<section class="board-area">' + layers + boardHtml + transfer + '</section>' +
+      '" data-level="' + l.id + '">' + sparks + '<section class="board-area">' + layers + boardHtml + transfer + '</section>' +
       '<p class="guide" id="guide">' + guide + '</p><nav class="game-tools" aria-label="' + L('Помощь','Game tools') + '">' +
       '<button data-action="undo" ' + (game.moves.length ? '' : 'disabled') + '>' + icon('undo') + '<span>' + L('Отмена','Undo') + '</span></button>' +
       '<button class="hint-button" data-action="hint">' + icon('hint') + '<span>' + L('Подсказка','Hint') + '</span></button>' +
@@ -434,9 +435,9 @@
   }
 
   function chooseCell(id, byKeyboard = false) {
-    if (busy || game.solved) return;
+    if (busy || game.solved || exhausted()) return;
     const { board } = currentState();
-    const { engine, layer } = game;
+    const { engine } = game;
     if (bonusMode && bonusAvailable()) {
       if (game.bonus === 'break' && E.isWall(board[id])) {
         playMove(id,id,byKeyboard,'break');
@@ -456,29 +457,30 @@
     if (E.isPinned(board[id])) { updateGuide(ruleTip('pinned')[1]); return; }
     if (board[id] === '%') { updateGuide(ruleTip('fragile')[1]); return; }
     if (board[id] === '') {
-      if (selected !== null && engine.legal(board, selected, id)) {
-        playMove(selected, id, byKeyboard);
-        return;
-      }
-      const options = engine.neighbors[id].filter(i => engine.canMove(board[i]) && engine.xyz(i)[2] === layer);
-      if (options.length === 1) playMove(options[0], id, byKeyboard);
-      else if (options.length) updateGuide(L('Коснись буквы, которую хочешь сдвинуть сюда.','Tap the letter you want to slide here.'));
+      if (selected !== null && engine.legal(board,selected,id)) playMove(selected,id,byKeyboard);
+      else updateGuide(selected === null ? L('Сначала нажми на букву.','Tap a letter first.') :
+        L('Выбери подсвеченную клетку рядом с буквой.','Choose a highlighted cell next to the letter.'));
       return;
     }
     if (!engine.canMove(board[id])) return;
-    const options = engine.neighbors[id].filter(i => board[i] === '');
-    const flat = options.filter(i => engine.xyz(i)[2] === layer);
-    if (flat.length === 1 && options.length === 1) {
-      playMove(id, flat[0], byKeyboard);
-      return;
-    }
-    selected = id;
-    if (!options.length) message = L('У этого кубика нет соседней пустой клетки.','There is no empty cell next to this cube.');
-    else if (!flat.length) message = L('Пустая клетка на другом этаже. Выбери «Выше» или «Ниже».','The gap is on another floor. Tap Up or Down.');
-    else if (flat.length !== options.length) message = L('Выбери пустую клетку или сдвинь кубик на соседний этаж.','Choose an empty cell or move to the next floor.');
-    else message = L('Выбери пустую клетку, куда сдвинуть кубик.','Choose an empty cell for the cube.');
+    selected = selected === id ? null : id;
+    if (hintMove && selected !== hintMove[0]) hintMove = null;
+    message = selectionGuide();
     renderGame();
     if (byKeyboard) focusCell(id);
+    if (message) tell(message);
+  }
+
+  function selectionGuide() {
+    if (selected === null) return '';
+    const { engine,layer } = game;
+    const { board } = currentState();
+    const available = engine.neighbors[selected].filter(cell => engine.legal(board,selected,cell));
+    if (!available.length) return L('Рядом с этой буквой нет пустой клетки.','There is no empty cell next to this letter.');
+    if (available.some(cell => engine.xyz(cell)[2] === layer)) {
+      return L('Теперь нажми на подсвеченную пустую клетку.','Now tap a highlighted empty cell.');
+    }
+    return L('Открой подсвеченный этаж и нажми на пустую клетку.','Open a highlighted floor and tap the empty cell.');
   }
 
   function updateGuide(text) {
@@ -490,7 +492,7 @@
   function focusCell(id) { app.querySelector('[data-cell="' + id + '"]')?.focus({ preventScroll: true }); }
 
   function playMove(from, to, byKeyboard = false, kind) {
-    if (busy || game.solved) return;
+    if (busy || game.solved || exhausted()) return;
     const { board, found } = currentState();
     const { engine, level } = game;
     const next = engine.play(board, found, from, to, kind);
@@ -522,23 +524,23 @@
       setTimeout(() => pop?.remove(),1050);
       combo = 0;
     }
-    if (!win) return;
+    if (!win && !exhausted()) return;
     busy = true;
     const finished = game;
     setTimeout(() => {
       if (game !== finished) return;
       busy = false;
-      if (screen === 'game') showWin();
+      if (screen === 'game') win ? showWin() : showExhausted();
     }, reducedMotion.matches ? 0 : 380);
   }
 
   function recordWin() {
-    const { level, moves, hints } = game;
+    const { level,moves,budget } = game;
     const before = stars();
-    const tier = moves.length <= level.gold && (!hints || level.id <= 3) ? 3 : moves.length <= level.silver ? 2 : 1;
+    const { percent,tier } = E.rateMoves(moves.length,budget);
     const prior = profile.scores[level.id];
     const improved = !prior || tier > prior.stars || (tier === prior.stars && moves.length < prior.moves);
-    if (improved) profile.scores[level.id] = { stars: tier, moves: moves.length };
+    if (improved) profile.scores[level.id] = { stars:tier, moves:moves.length, percent };
     const spark = !profile.collected[level.id] && game.history.some(state => state.spark);
     if (spark) {
       profile.collected[level.id] = true;
@@ -547,7 +549,7 @@
     const after = stars();
     const rewards = palettes.filter(p => p.stars > before && p.stars <= after);
     game.solved = true;
-    game.result = { tier, prior, rewards, spark, combo:combo, newChapter: !prior && level.id % 10 === 0 && level.id < 50 && unlocked(level.id+1), full: cleared() === 50 };
+    game.result = { tier, percent, prior, rewards, spark, combo:combo, newChapter: !prior && level.id % 10 === 0 && level.id < 50 && unlocked(level.id+1), full: cleared() === 50 };
     profile.active = null;
     save();
   }
@@ -562,6 +564,20 @@
     const tip = ruleTip('spark');
     modal(tip[0],'<p>' + tip[1] + '</p>' + (canPickBonus() ? bonusChoices() : ''),buttonHTML('close',L('Готово','Done')));
   }
+  function ratingBar(percent) {
+    const name = L('Эффективность ходов','Move efficiency');
+    return '<div class="rating"><div class="rating-label"><span>' + name + '</span><strong>' + percent +
+      '%</strong></div><div class="rating-track" role="progressbar" aria-label="' + name +
+      '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + percent + '"><span style="width:' + percent +
+      '%"></span></div><div class="rating-ends" aria-hidden="true"><span>0%</span><span>100%</span></div></div>';
+  }
+  function showExhausted() {
+    modal(L('Ходы закончились','No moves left'),
+      ratingBar(0) + '<p>' + L('Отмени последний ход или начни уровень заново.','Undo the last move or restart the level.') + '</p>',
+      buttonHTML('undo-limit',L('Отменить ход','Undo last move')) + buttonHTML('confirm-restart',L('Заново','Restart'),'secondary') +
+      buttonHTML('map',L('К уровням','Levels'),'secondary'),'win-dialog',false);
+  }
+
   function showWin() {
     const { level, moves, result } = game;
     const chapter = chapters[chapterIndex(level.id+1)];
@@ -575,8 +591,8 @@
     const boost = canPickBonus() && level.id < 50 ? bonusChoices() : profile.bonus ? '<p class="reward">' +
       L('Бонус готов — ','Boost ready: ') + bonusName(profile.bonus) + '</p>' : '';
     modal(result.full ? L('Все уровни пройдены!','All levels complete!') : L('Уровень пройден!','Level complete!'),
-      '<div class="win-stars">' + medal(result.tier) + '</div><p>' + level.words.length + ' / ' + level.words.length +
-      L(' слов · ',' words · ') + moves.length + ' ' + moveWord(moves.length) + '</p>' + best + z + rewards + streak + spark + boost,
+      '<div class="win-stars">' + medal(result.tier) + '</div>' + ratingBar(result.percent) + '<p>' + level.words.length + ' / ' + level.words.length +
+      L(' слов · ',' words · ') + moves.length + ' / ' + game.budget.limit + ' ' + moveWord(game.budget.limit) + '</p>' + best + z + rewards + streak + spark + boost,
       buttonHTML(next ? 'next' : 'map',next ? L('Следующий уровень','Next level') : L('К уровням','Levels')) +
       buttonHTML(next ? 'map' : 'home',next ? L('К уровням','Levels') : L('Главное меню','Main menu'),'secondary'), 'win-dialog', false);
   }
@@ -631,7 +647,7 @@
   }
 
   function hint() {
-    if (busy || game.solved) return;
+    if (busy || game.solved || exhausted()) return;
     bonusMode = false;
     const { board, found } = currentState();
     game.trace ??= E.trace(game.level, game.engine).hints;
@@ -643,13 +659,10 @@
       return;
     }
     hintMove = move;
-    selected = move[0];
+    selected = null;
     game.layer = game.engine.xyz(move[0])[2];
-    const [x,y,z] = game.engine.xyz(move[0]);
-    const [a,b,c] = game.engine.xyz(move[1]);
-    const direction = z !== c ? (c > z ? L('Нажми «Выше».','Tap Up.') : L('Нажми «Ниже».','Tap Down.')) :
-      L('Сдвинь её ','Slide it ') + (a > x ? L('вправо','right') : a < x ? L('влево','left') : b > y ? L('вниз','down') : L('вверх','up')) + '.';
-    message = L('Буква «','Letter ') + E.letter(board[move[0]]) + L('» подсвечена. ',' is highlighted. ') + direction;
+    message = L('Сначала нажми на «' + E.letter(board[move[0]]) + '», затем выбери клетку.',
+      'Tap ' + E.letter(board[move[0]]) + ' first, then choose the empty cell.');
     game.hints++;
     saveGame();
     renderGame();
@@ -657,10 +670,10 @@
   }
 
   function switchLayer(layer) {
-    if (busy || game.solved || game.layer === layer) return;
+    if (busy || game.solved || game.layer === layer || layer < 0 || layer >= game.level.d) return;
     game.layer = layer;
-    selected = null;
-    message = '';
+    if (bonusMode) selected = null;
+    message = selectionGuide();
     saveGame();
     renderGame();
     tell(L('Этаж ','Floor ') + (layer+1));
@@ -716,9 +729,9 @@
 
   function showHelp() {
     const rules = [
-      [L('Сдвигай кубики','Slide the cubes'),L('Коснись буквы рядом с пустой клеткой или смахни её туда.','Tap a letter next to a gap or swipe it into the gap.')],
+      [L('Сдвигай кубики','Slide the cubes'),L('Сначала нажми на букву. Затем нажми на соседнюю пустую клетку.','Tap a letter first. Then tap an adjacent empty cell.')],
       [L('Собирай слова','Make words'),L('Слова читаются слева направо или сверху вниз на одном этаже. Готовое слово освобождает клетки.','Read left to right or top to bottom on one floor. Completed words clear their cells.')],
-      [L('Перемещай буквы между этажами','Move between floors'),L('Выбери букву, затем «Выше» или «Ниже». На соседнем этаже нужна пустая клетка в той же позиции.','Select a letter, then tap Up or Down. The same cell on the next floor needs to be empty.')],
+      [L('Перемещай буквы между этажами','Move between floors'),L('Выбери букву, открой соседний этаж и нажми на подсвеченную пустую клетку.','Select a letter, open an adjacent floor, then tap the highlighted empty cell.')],
     ];
     if (game) {
       const id = game.level.id;
@@ -735,15 +748,15 @@
       L('Браузер не даёт сохранить прогресс после закрытия страницы.','This browser could not save your progress.');
     const playing = screen === 'game';
     const sound = L('Звук','Sound');
-    const rating = playing ? L('3 звезды — до ' + game.level.gold + ' ходов' + (game.level.id > 3 ? ' без подсказок' : '') +
-      '. 2 звезды — до ' + game.level.silver + ' ходов.', '3 stars: up to ' + game.level.gold + ' moves' +
-      (game.level.id > 3 ? ' without hints' : '') + '. 2 stars: up to ' + game.level.silver + ' moves.') : storage;
+    const rating = playing ? L('Лимит — ' + game.budget.limit + ' ходов. План — ' + game.budget.reference +
+      '. Три звезды от 85%, две от 50%.', 'Limit: ' + game.budget.limit + ' moves. Target: ' + game.budget.reference +
+      '. Three stars at 85% and up, two at 50% and up.') : storage;
     modal(playing ? L('Пауза','Pause') : L('Настройки','Settings'),
       '<div class="setting-row"><b>' + sound + '</b><button class="switch" role="switch" aria-checked="' + profile.sound +
       '" aria-label="' + sound + '" data-action="sound"><i></i></button></div><p>' + rating + '</p>',
       buttonHTML('close',playing ? L('Продолжить','Continue') : L('Готово','Done')) +
       buttonHTML('help',L('Как играть','How to play'),'secondary') +
-      (playing ? buttonHTML('restart',L('Заново','Restart'),'secondary') + buttonHTML('map',L('К уровням','Levels'),'secondary') : ''));
+      (playing ? buttonHTML('words',L('Слова уровня','Target words'),'secondary') + buttonHTML('restart',L('Заново','Restart'),'secondary') + buttonHTML('map',L('К уровням','Levels'),'secondary') : ''));
   }
 
   let paletteReturn = 'home';
@@ -799,8 +812,8 @@
       case 'confirm-level': if (pendingLevel) openLevel(pendingLevel, true); pendingLevel = null; break;
       case 'next': openLevel(game.level.id+1); break;
       case 'layer': switchLayer(Number(index)); break;
-      case 'transfer': if (selected !== null) playMove(selected, Number(index)); break;
       case 'undo': undo(); break;
+      case 'undo-limit': dialog.close(); undo(); break;
       case 'hint': hint(); break;
       case 'restart':
         if (busy || game.solved) break;
@@ -809,7 +822,7 @@
           '<p>' + L('Все кубики вернутся на свои места.','All cubes will return to their starting positions.') + '</p>',
           buttonHTML('confirm-restart',L('Начать заново','Restart')) + buttonHTML('close',L('Отмена','Cancel'),'secondary'));
         break;
-      case 'confirm-restart': openLevel(game.level.id, true, game.level.revision || 1); break;
+      case 'confirm-restart': openLevel(game.level.id,true,true); break;
     }
   }
 
@@ -817,47 +830,22 @@
     const button = event.target.closest('button');
     if (!button || button.disabled) return;
     if (button.dataset.action) action(button);
-    else if (screen === 'game' && button.dataset.cell !== undefined && (event.detail === 0 || performance.now() > ignoreClickUntil)) chooseCell(Number(button.dataset.cell), event.detail === 0);
+    else if (screen === 'game' && button.dataset.cell !== undefined) chooseCell(Number(button.dataset.cell), event.detail === 0);
   });
   dialog.addEventListener('cancel', event => { if (dialog.dataset.dismissible === 'false') event.preventDefault(); });
   dialog.addEventListener('click', event => {
     if (event.target === dialog && dialog.dataset.dismissible !== 'false') dialog.close();
   });
-  app.addEventListener('pointerdown', event => {
-    const cell = event.target.closest('[data-cell]');
-    if (screen !== 'game' || busy || !cell || !event.isPrimary || event.button !== 0) return;
-    pointer = { id: event.pointerId, cell: Number(cell.dataset.cell), x: event.clientX, y: event.clientY };
-  });
-  app.addEventListener('pointercancel', () => { pointer = null; });
-  app.addEventListener('pointerup', event => {
-    if (!pointer || pointer.id !== event.pointerId) return;
-    const { cell, x, y } = pointer;
-    pointer = null;
-    const dx = event.clientX-x, dy = event.clientY-y;
-    if (Math.max(Math.abs(dx),Math.abs(dy)) < 16) return;
-    ignoreClickUntil = performance.now() + 270;
-    slide(cell, Math.abs(dx) > Math.abs(dy) ? Math.sign(dx) : 0, Math.abs(dy) >= Math.abs(dx) ? Math.sign(dy) : 0);
-  });
-
-  function slide(cell, dx, dy, keyboard = false) {
-    if (!game || busy || game.solved || bonusMode) return;
-    const { engine, level } = game;
-    const [x,y,z] = engine.xyz(cell);
-    const a = x+dx, b = y+dy;
-    if (a >= 0 && b >= 0 && a < level.w && b < level.h && engine.legal(currentState().board, cell, engine.index(a,b,z))) {
-      playMove(cell, engine.index(a,b,z), keyboard);
-    } else {
-      updateGuide(L('Сдвинуть кубик можно только в соседнюю пустую клетку.','Slide a cube into an adjacent empty cell.'));
-    }
-  }
-
   app.addEventListener('keydown', event => {
     if (screen !== 'game' || !event.target.matches('[data-cell]')) return;
-    const directions = { ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,-1], ArrowDown: [0,1] };
+    const directions = { ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1] };
     const direction = directions[event.key];
     if (!direction) return;
     event.preventDefault();
-    slide(Number(event.target.dataset.cell), ...direction, true);
+    const { engine, level } = game;
+    const [x,y,z] = engine.xyz(Number(event.target.dataset.cell));
+    const a = x+direction[0], b = y+direction[1];
+    if (a >= 0 && b >= 0 && a < level.w && b < level.h) focusCell(engine.index(a,b,z));
   });
   render();
 })();
