@@ -7,6 +7,7 @@
   const legacyLevels = window.CubeLegacyLevels || [];
   const app = document.querySelector('#app');
   const dialog = document.querySelector('#dialog');
+  const deviceScreen = dialog.parentElement;
   const announce = document.querySelector('#announce');
   const params = new URLSearchParams(location.search);
   const preview = params.get('preview') === '1';
@@ -129,13 +130,12 @@
   }
 
   function renderHome() {
-    const chapter = chapters[chapterIndex(frontier())];
     const logoTiles = [...L('СЛОВО.КУБ','WORD.CUBE')];
     const active = profile.active?.id;
     const resumable = active || cleared();
     app.innerHTML =
       '<div class="home-landscape" aria-hidden="true"></div><header class="topbar home-top"><div class="brand-mark">' +
-      '<span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>' + L('Словесная<br>головоломка','Letter<br>puzzle') + '</span></div>' +
+      '<span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>' + L('Головоломка<br>из слов','Word<br>puzzle') + '</span></div>' +
       '<div class="top-actions">' + metric() + iconButton('settings', L('Настройки','Settings'), 'more') + '</div></header>' +
       '<section class="home-hero"><div class="hero-title"><h1>' + document.title + '</h1><p>' + L('Сдвигай кубики. Собирай слова.','Slide cubes. Make words.') + '</p></div>' +
       '<div class="hero-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>' +
@@ -146,10 +146,6 @@
       '<button class="button primary start" data-action="start">' + icon('play') + '<b>' + L('Начать','Start') + '</b></button>' +
       '<div class="secondary-menu"><button class="button secondary" data-action="continue" ' + (resumable ? '' : 'disabled') + '>' + icon('retry') + '<span>' + L('Продолжить','Continue') + (resumable ? '<small>' + L('Уровень ','Level ') + (active ?? frontier()) + '</small>' : '') + '</span></button>' +
       '<button class="button secondary" data-action="map">' + icon('levels') + '<span>' + L('Выбрать уровень','Choose level') + '</span></button></div></section>' +
-      '<footer class="home-footer"><button type="button" class="chapter-link" data-action="map">' +
-      '<span class="chapter-emblem tone-' + chapter.color + '" aria-hidden="true">' + chapter.mark + '</span>' +
-      '<span><b>' + localized(chapter.name) + '</b><small>' + cleared() + L(' из 50 уровней пройдено',' of 50 levels complete') + '</small></span></button>' +
-      iconButton('help', L('Как играть','How to play'), 'help') + '</footer>' +
       (preview ? '<p class="preview-label">' + L('Демо. Все уровни открыты.','Demo. All levels unlocked.') + '</p>' : '');
   }
 
@@ -693,11 +689,27 @@
     } catch { /* Sound is optional on browsers without Web Audio. */ }
   }
 
+  function positionDialog() {
+    const { left, top, width, height } = deviceScreen.getBoundingClientRect();
+    dialog.style.setProperty('--screen-x',(left + width/2) + 'px');
+    dialog.style.setProperty('--screen-y',(top + height/2) + 'px');
+    dialog.style.setProperty('--screen-w',width + 'px');
+    dialog.style.setProperty('--screen-h',height + 'px');
+  }
+
+  function repositionOpenDialog() {
+    if (dialog.open) positionDialog();
+  }
+  new ResizeObserver(repositionOpenDialog).observe(deviceScreen);
+  window.addEventListener('resize',repositionOpenDialog);
+  window.addEventListener('scroll',repositionOpenDialog,{ passive:true });
+
   function modal(title, body, actions, style = '', dismissible = true) {
     dialog.className = style;
     dialog.dataset.dismissible = String(dismissible);
     dialog.innerHTML = '<div class="dialog-inner">' + (dismissible ? iconButton('close', L('Закрыть','Close'), 'close', 'dialog-close') : '') +
       '<h2 id="dialog-title">' + title + '</h2><div class="dialog-copy">' + body + '</div><div class="dialog-actions">' + actions + '</div></div>';
+    positionDialog();
     if (!dialog.open) dialog.showModal();
     else dialog.querySelector('button:not(.dialog-close)')?.focus();
   }

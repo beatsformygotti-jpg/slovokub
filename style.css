@@ -77,7 +77,7 @@ button { touch-action: manipulation; }
 .brand-symbol i:nth-child(2) { background:#aff2dd; box-shadow:inset 0 -2px #6baa99; }
 .brand-symbol i:nth-child(4) { background:none; border:1px dashed #9d8dc7; box-shadow:none; }
 
-.app[data-screen="home"] { display:flex; flex-direction:column; overflow:hidden; }
+.app[data-screen="home"] { display:flex; flex-direction:column; overflow:auto; }
 .home-landscape {
   position:absolute; z-index:-1; inset:0; pointer-events:none;
   background:radial-gradient(ellipse at 57% 32%, #654abc 0%, #383165 34%, transparent 67%),
@@ -132,12 +132,6 @@ button { touch-action: manipulation; }
 .secondary-menu .button span:not(.icon) { text-align:left; }
 .secondary-menu small { display:block; margin-top:3px; font-size:.75rem; color:#d1c6f1; }
 .secondary:disabled { background:#2b2649; border-color:#4e456f; color:#aaa1c8; }
-.home-footer { margin-top:auto; padding-top:24px; display:flex; gap:12px; align-items:center; justify-content:space-between; }
-.chapter-link { display:flex; align-items:center; gap:10px; background:none; border:0; padding:0; text-align:left; min-height:46px; }
-.chapter-link b, .chapter-link small { display:block; }
-.chapter-link b { font-size:.88rem; }
-.chapter-link small { font-size:.75rem; color:var(--muted); margin-top:2px; }
-.chapter-emblem { width:42px; height:42px; display:grid; place-items:center; color:var(--tone-top); font:1.4rem system-ui,sans-serif; background:color-mix(in srgb,var(--tone-edge) 50%,#242039); border:1px solid color-mix(in srgb,var(--tone) 48%,#27223d); border-radius:13px; }
 .preview-label { font-size:.77rem; color:var(--muted); margin-top:10px; text-align:center; }
 
 .subbar { margin-bottom:22px; }
@@ -321,7 +315,6 @@ dialog::backdrop { background:#0d0a1bd2; backdrop-filter:blur(4px); }
 }
 @media (min-height:800px) {
   .app[data-screen="home"] { padding-bottom:max(30px,env(safe-area-inset-bottom)); }
-  .home-footer { min-height:92px; }
 }
 @media (max-width:355px) {
   .app { padding-inline:15px; }
@@ -337,68 +330,117 @@ dialog::backdrop { background:#0d0a1bd2; backdrop-filter:blur(4px); }
 @media (max-height:690px) {
   .home-hero { padding-top:20px; }
   .hero-art { height:219px; }
-  .home-footer { padding-top:16px; }
 }
 @media (prefers-reduced-motion:reduce) {
   *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; }
 }
 
-/* The game uses the phone viewport as its layout boundary. */
+/* Portrait Redmi A5 shell from Roll & Slide. */
+body {
+  display:grid;
+  place-items:center;
+  background:radial-gradient(ellipse at 34% 25%,#4b254f 0,transparent 58%),
+    radial-gradient(ellipse at 74% 76%,#233458 0,transparent 53%),#141027;
+}
 .device-layout {
-  --screen-height: min(calc(100dvh - 36px), 890px);
   display:flex;
   align-items:flex-start;
   justify-content:center;
-  position:relative;
-  width:min(430px, calc(100vw - 160px));
-  margin:18px auto;
+  gap:clamp(13px,2.6vw,33px);
+  padding:0 12px;
+  margin:16px auto;
 }
 .device-frame {
-  width:100%;
-  border:5px solid #43355f;
-  border-radius:33px;
-  background:#18162a;
-  box-shadow:0 0 0 1px #9d81c3, 0 14px 42px #0b081bbb, inset 0 0 0 1px #9e81b34d;
-  overflow:hidden;
+  position:relative;
+  flex:none;
+  width:min(calc((100svh - 42px)*.445),calc(100vw - 164px),480px);
+  padding:clamp(4px,.76vw,9px) clamp(4px,.72vw,9px) clamp(6px,.93vw,12px);
+  border:1px solid #1b162a;
+  border-radius:11.9%/5.25%;
+  background:linear-gradient(142deg,#927391,#453751 25%,#241f3c 68%,#6d6a99);
+  box-shadow:0 0 0 1px #8b719a85,inset 0 0 0 2px #c4a0c046,0 13px 44px #080617b9,0 3px 7px #0f0726;
 }
-.device-frame .app {
-  --available-height: calc(var(--screen-height) - 10px);
+.device-frame::after {
+  content:"";
+  position:absolute;
+  right:-1.2%;
+  top:18.5%;
+  width:1%;
+  height:9.9%;
+  border-radius:2px;
+  background:linear-gradient(#4b385a,#907b9f);
+  box-shadow:-1px 0 #242038;
+}
+.device-screen {
+  position:relative;
+  display:block;
+  aspect-ratio:720/1640;
+  container:screen / size;
+  border:1px solid #2d2345;
+  border-radius:10.3%/4.55%;
+  overflow:hidden;
+  isolation:isolate;
+  background:#201530;
+}
+.device-notch {
+  position:absolute;
+  top:-.1cqw;
+  left:50%;
+  z-index:10;
+  width:10.1cqw;
+  height:4.7cqw;
+  transform:translateX(-50%);
+  background:#21182e;
+  border-radius:0 0 51% 51% / 0 0 95% 95%;
+  pointer-events:none;
+}
+.device-notch::after {
+  content:"";
+  position:absolute;
+  left:50%;
+  top:.6cqw;
+  width:2.6cqw;
+  height:2.6cqw;
+  transform:translateX(-50%);
+  border-radius:50%;
+  background:radial-gradient(circle at 44% 43%,#8a6093,#191423 57%);
+}
+.device-screen .app {
+  --available-height:100cqh;
   max-width:none;
   min-height:0;
-  height:var(--available-height);
+  height:100%;
+  padding:clamp(12px,5.2cqw,23px) clamp(9px,5.4cqw,24px) clamp(9px,4.6cqw,22px);
   overflow:auto;
   overscroll-behavior:contain;
   scrollbar-width:none;
+  box-shadow:none;
 }
-.device-frame .app::-webkit-scrollbar { display:none; }
+.device-screen .app::-webkit-scrollbar { display:none; }
 .language-switch {
   display:flex;
-  gap:4px;
-  position:absolute;
-  top:16px;
-  left:calc(100% + 15px);
-  padding:4px;
-  border:1px solid #8b76b3;
-  background:#2f274a;
-  border-radius:12px;
-  z-index:5;
+  flex:none;
+  gap:3px;
+  padding:3px;
+  background:#271f3abf;
+  border:1px solid #b797b771;
+  border-radius:9px;
 }
 .language-switch button {
-  min-width:37px;
-  min-height:34px;
   border:0;
-  border-radius:8px;
+  border-radius:5px;
+  padding:0 10px;
+  min-height:36px;
   background:none;
-  color:#f2eaff;
-  font-weight:750;
-  font-size:.78rem;
+  color:#f0e1f1;
+  font:750 12px/1 "Avenir Next",system-ui,sans-serif;
 }
-.language-switch button[aria-pressed="true"] { background:#d6beff;color:#2c1f46; }
-.device-frame .app[data-screen=game] {
+.language-switch button[aria-pressed=true] { background:#eeb2d0; color:#301b37; }
+.language-switch button:focus-visible { outline:2px solid #ffd8ed; outline-offset:2px; }
+.device-screen .app[data-screen=game] {
   display:flex;
   flex-direction:column;
-  padding:9px 13px 9px;
-  overflow:auto;
+  padding:clamp(12px,5.2cqw,22px) clamp(7px,3.6cqw,16px) 8px;
 }
 .game-top { flex:none; min-height:42px; gap:6px; }
 .game-top .icon-button { min-width:36px; height:36px; border-radius:11px; }
@@ -437,7 +479,7 @@ dialog::backdrop { background:#0d0a1bd2; backdrop-filter:blur(4px); }
 .game-content.compact-game .board-area { width:min(100%,355px,max(176px,calc(var(--available-height) - var(--room)))); }
 .game-content .board-chassis { padding:8px; border-radius:16px; }
 .game-content .board-grid { gap:7px 6px; }
-.game-content .cell { font-size:clamp(1rem,6.4vw,2.05rem); border-radius:clamp(5px,2.8vw,12px); }
+.game-content .cell { font-size:clamp(.95rem,8.1cqw,2.05rem); border-radius:clamp(5px,2.8cqw,12px); }
 .game-content .layer-tabs { margin-bottom:5px; }
 .game-content .layer-tab { min-height:33px; }
 .game-content .depth-controls { margin-top:9px; }
@@ -497,16 +539,99 @@ dialog::backdrop { background:#0d0a1bd2; backdrop-filter:blur(4px); }
 .reward-choices p { grid-column:1 / -1; }
 .reward-choices .button { min-height:42px; font-size:.8rem; }
 .dialog-copy .word-list { max-height:42dvh; overflow:auto; }
-@media (max-width:540px) {
-  .device-layout { --screen-height:calc(100dvh - 34px); flex-direction:column; align-items:stretch; width:100%; margin:0; }
-  .device-frame { border:0; border-radius:0; box-shadow:none; }
-  .device-frame .app { --available-height:var(--screen-height); }
-  .language-switch { position:static; order:-1; align-self:flex-end; margin:0 9px; padding:1px 3px; height:32px; border-radius:0 0 9px 9px; border-top:0; }
-  .language-switch button { min-width:35px; min-height:28px; }
-  .app[data-screen=home] { padding-top:8px; }
+@media (max-width:610px) {
+  .device-layout { flex-direction:column;align-items:center;gap:8px;margin:5px auto;padding:0 6px; }
+  .device-frame { width:min(calc((100svh - 55px)*.432),calc(100vw - 12px)); }
+  .language-switch { order:-1;padding:2px; }
+  .language-switch button { min-height:32px;padding:0 8px;font-size:11px; }
 }
-@media (max-height:620px) {
-  .game-content.multi-floor { --room:273px; }
-  .home-hero { padding-top:17px; }
-  .hero-art { height:193px; }
+.device-screen .home-hero {
+  display:flex;
+  flex:1;
+  flex-direction:column;
+  justify-content:center;
+  padding-block:clamp(12px,5cqw,25px);
+}
+.device-screen .home-play { margin-bottom:clamp(12px,9cqw,36px); }
+.device-screen .hero-title h1 { font-size:clamp(22px,11.3cqw,51px); }
+.device-screen .hero-title p { font-size:clamp(11px,4.05cqw,16px); margin-top:clamp(7px,3.2cqw,14px); }
+.device-screen .hero-art { height:clamp(155px,71cqw,310px); }
+.device-screen .hero-grid { --cube:clamp(30px,15cqw,63px); gap:clamp(5px,2.1cqw,9px); padding:clamp(6px,3.1cqw,12px); }
+.device-screen .hero-tile { font-size:clamp(17px,6.7cqw,31px); }
+.device-screen .secondary-menu { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.device-screen:has(> dialog[open])::after {
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:9;
+  background:#0d0a1bd2;
+  backdrop-filter:blur(3px);
+  pointer-events:none;
+}
+dialog {
+  position:fixed;
+  inset:auto;
+  top:var(--screen-y);
+  left:var(--screen-x);
+  margin:0;
+  translate:-50% -50%;
+  width:min(calc(var(--screen-w, 320px) - 18px),420px);
+  max-height:calc(var(--screen-h, 480px) - 22px);
+}
+dialog::backdrop { background:transparent;backdrop-filter:none; }
+@container screen (max-width:270px) {
+  .device-screen .topbar { min-height:36px;gap:5px; }
+  .device-screen .icon-button,.device-screen .star-bank { min-width:32px;height:32px;border-radius:10px; }
+  .device-screen .star-bank { padding:0 6px; }
+  .device-screen .top-actions { gap:4px; }
+  .device-screen .top-title strong { font-size:.72rem; }
+  .device-screen .top-title small,.move-count { font-size:.66rem; }
+  .device-screen .brand-mark { gap:5px;font-size:.6rem; }
+  .device-screen .brand-symbol { width:22px;height:22px; }
+  .device-screen .home-play { gap:7px; }
+  .device-screen .start { min-height:44px;font-size:1rem; }
+  .device-screen .secondary-menu { gap:5px; }
+  .device-screen .secondary-menu .button { min-height:42px;padding:6px 3px;font-size:.68rem; }
+  .device-screen .secondary-menu .icon { display:none; }
+  .device-screen .chapter-mark { width:38px;font-size:1.9rem; }
+  .device-screen .chapter-banner { min-height:96px;padding:10px; }
+  .device-screen .level-grid,.device-screen .chapter-tabs { gap:4px; }
+  .device-screen .level-card { min-height:40px;border-radius:8px; }
+  .device-screen .level-card .medal { gap:0;font-size:.62rem; }
+  .device-screen .chapter-tabs small { font-size:.58rem; }
+  .device-screen .swatch i { width:19px;height:22px; }
+  .game-content.compact-game { --room:162px;gap:4px; }
+  .game-content.multi-floor { --room:221px; }
+  .game-goals { min-height:32px; }
+  .goal-toggle b,.spark-meter i { font-size:.68rem; }
+  .spark-meter { padding-inline:5px; }
+  .game-content .board-chassis { padding:5px;border-radius:12px; }
+  .game-content .board-grid { gap:4px; }
+  .game-content .layer-tab { min-height:27px;gap:2px;font-size:.69rem; }
+  .game-content .mini-grid { width:12px; }
+  .game-content .depth { min-height:28px;font-size:.68rem; }
+  .game-content .depth-controls { font-size:.65rem;gap:4px; }
+  .game-content.compact-game .guide { font-size:.67rem; }
+  .game-content.compact-game .game-tools button { min-height:32px;font-size:.6rem;padding:3px;gap:3px;border-radius:10px; }
+  .game-content .game-tools { gap:4px; }
+  .game-content .game-tools button .icon { font-size:.78rem; }
+  .tile-mark,.lift-mark { font-size:.58rem; }
+  .dialog-inner { padding:14px; }
+  .dialog-inner h2 { font-size:.88rem;padding-right:20px; }
+  .dialog-copy { font-size:.78rem; }
+  .dialog-close { min-width:29px;height:29px;right:8px;top:8px; }
+  .dialog-actions .button { min-height:36px;font-size:.78rem; }
+  .reward-choices .button { padding-inline:4px;font-size:.7rem; }
+}
+
+@container screen (max-height:430px) {
+  .device-screen .app[data-screen=game] { padding-top:10px; }
+  .game-content.compact-game { gap:2px; }
+  .game-content.multi-floor .board-area { max-width:calc(100cqh - 258px); }
+  .game-goals { min-height:28px; }
+  .game-content .layer-tab { min-height:23px; }
+  .game-content .depth-controls { margin-top:6px; }
+  .game-content .depth { min-height:24px; }
+  .game-content.compact-game .guide { font-size:.63rem; }
+  .game-content.compact-game .game-tools button { min-height:28px; }
 }

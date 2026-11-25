@@ -7,23 +7,28 @@
   <meta name="description" content="Сдвигай буквенные кубики, собирай слова и открывай новые главы.">
   <title>Словокуб</title>
   <link rel="icon" href="favicon.png">
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
   <script defer src="engine.js?v=3"></script>
   <script defer src="legacy-levels.js"></script>
   <script defer src="levels.js?v=2"></script>
   <script defer src="campaigns.js"></script>
-  <script defer src="app.js?v=3"></script>
+  <script defer src="app.js?v=4"></script>
 </head>
 <body>
   <div class="device-layout">
-    <div class="device-frame"><main id="app" class="app" aria-label="Словокуб"></main></div>
+    <div class="device-frame">
+      <div class="device-screen">
+        <span class="device-notch" aria-hidden="true"></span>
+        <main id="app" class="app" aria-label="Словокуб"></main>
+        <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
+      </div>
+    </div>
     <nav id="languages" class="language-switch" aria-label="Language">
       <button type="button" data-action="language" data-language="ru" lang="ru" aria-label="Русский">RU</button>
       <button type="button" data-action="language" data-language="en" lang="en" aria-label="English">EN</button>
     </nav>
   </div>
   <p class="sr-only" id="announce" aria-live="polite"></p>
-  <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
   <noscript>Включите JavaScript в браузере, чтобы играть в «Словокуб».</noscript>
 </body>
 </html>
