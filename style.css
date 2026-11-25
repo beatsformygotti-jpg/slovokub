@@ -660,3 +660,21 @@ dialog::backdrop { background:transparent;backdrop-filter:none; }
 .rating-track span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#e9a46d,#ffd786,#cffa8e); transform-origin:left; animation:rating-fill 530ms cubic-bezier(.18,.74,.25,1) both; }
 .rating-ends { font-size:.62rem; color:var(--muted); }
 @keyframes rating-fill { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+
+.chapter-tabs small { white-space:nowrap; font-size:clamp(.52rem,3.35cqw,.7rem); }
+.level-card {
+  container-type:inline-size;
+  grid-template-columns:minmax(0,1fr);
+  place-content:center stretch;
+  justify-items:center;
+}
+.device-screen .level-card .medal {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  justify-items:center;
+  gap:1px;
+  width:86%;
+  font-size:clamp(6px,24cqw,12px);
+  line-height:1;
+  letter-spacing:0;
+}
