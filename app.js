@@ -35,7 +35,7 @@
     { name: ['Золото','Gold'], color: 'gold', stars: 100 },
   ];
   const localized = pair => L(...pair);
-  const glyph = { play: '▶', levels: '▦', sound: '♫', back: '‹', more: '⋯', close: '×', hint: '✦', undo: '↶', retry: '↻', help: '?', palettes: '◈', star: '★', lock: '▣', up: '↑', down: '↓' };
+  const glyph = { play: '▶', levels: '▦', sound: '♫', back: '‹', more: '⋯', close: '×', hint: '✦', undo: '↶', retry: '↻', help: '?', palettes: '◈', star: '★', up: '↑', down: '↓' };
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
   let persist = true;
   let profile = read();
@@ -51,7 +51,7 @@
   let audio = null;
 
   function read() {
-    const initial = { scores: {}, active: null, sound: true, palette: 'violet', sparks: 0, collected: {}, bonus: null };
+    const initial = { scores: {}, active: null, last:null, sound: true, palette: 'violet', sparks: 0, collected: {}, bonus: null };
     try {
       const raw = JSON.parse(localStorage.getItem(storageKey()));
       if (!raw || typeof raw !== 'object') return initial;
@@ -64,7 +64,7 @@
       if (active && active.layout !== levels[active.id-1].revision) {
         active = { id:active.id, layout:levels[active.id-1].revision, moves:[], bonus:active.bonus };
       }
-      return { ...initial, scores, active, sound: raw.sound !== false,
+      return { ...initial, scores, active, last:Number.isInteger(raw.last) && levels[raw.last-1] ? raw.last : null, sound: raw.sound !== false,
         palette: palettes.some(p => p.color === raw.palette) ? raw.palette : 'violet',
         sparks: Number.isInteger(raw.sparks) && raw.sparks >= 0 ? raw.sparks : 0,
         collected: raw.collected && typeof raw.collected === 'object' ? raw.collected : {},
@@ -89,7 +89,11 @@
   function cleared() { return Object.keys(profile.scores).length; }
   function frontier() { return levels.find(l => !profile.scores[l.id])?.id ?? 50; }
   function chapterIndex(id) { return Math.floor((id - 1) / 10); }
-  function unlocked(id) { return preview || id <= frontier() || Boolean(profile.scores[id]); }
+  function continueId() {
+    if (profile.active) return profile.active.id;
+    const next = profile.last && levels[profile.last];
+    return next && !profile.scores[next.id] ? next.id : frontier();
+  }
   function icon(name) { return '<span aria-hidden="true" class="icon icon-' + name + '">' + glyph[name] + '</span>'; }
   function medal(count) {
     return '<span class="medal" aria-label="' + count + L(' из 3 звёзд',' of 3 stars') + '">' +
@@ -143,13 +147,13 @@
       '</div></section>' +
       '<section class="home-play" aria-label="' + L('Играть','Play') + '">' +
       '<button class="button primary start" data-action="start">' + icon('play') + '<b>' + L('Начать','Start') + '</b></button>' +
-      '<div class="secondary-menu"><button class="button secondary" data-action="continue" ' + (resumable ? '' : 'disabled') + '>' + icon('retry') + '<span>' + L('Продолжить','Continue') + (resumable ? '<small>' + L('Уровень ','Level ') + (active ?? frontier()) + '</small>' : '') + '</span></button>' +
+      '<div class="secondary-menu"><button class="button secondary" data-action="continue" ' + (resumable ? '' : 'disabled') + '>' + icon('retry') + '<span>' + L('Продолжить','Continue') + (resumable ? '<small>' + L('Уровень ','Level ') + continueId() + '</small>' : '') + '</span></button>' +
       '<button class="button secondary" data-action="map">' + icon('levels') + '<span>' + L('Выбрать уровень','Choose level') + '</span></button></div></section>' +
       (preview ? '<p class="preview-label">' + L('Демо. Все уровни открыты.','Demo. All levels unlocked.') + '</p>' : '');
   }
 
   function renderMap() {
-    const current = chapterIndex(profile.active?.id ?? frontier());
+    const current = chapterIndex(continueId());
     const navigation = '<nav class="chapter-tabs" aria-label="' + L('Перейти к главе','Jump to chapter') + '">' + chapters.map((chapter,i) => {
       const range = (i*10+1) + '–' + ((i+1)*10);
       return '<button type="button" data-action="chapter" data-index="' + i + '" class="tone-' + chapter.color +
@@ -158,8 +162,7 @@
     }).join('') + '</nav>';
     const sections = chapters.map((chapter,i) => renderChapter(chapter,i)).join('');
     const mode = preview ?
-      '<aside class="map-mode"><span>' + L('В демо открыты все уровни.','All levels are open in the demo.') + '</span><a href="?map=1' + L('','&amp;lang=en') + '">' + L('К кампании','Back to campaign') + '</a></aside>' :
-      '<aside class="map-mode"><span>' + L('В кампании уровни открываются по порядку.','Levels unlock in order in the campaign.') + '</span><a href="?preview=1&amp;map=1' + L('','&amp;lang=en') + '">' + L('Сыграть в любой уровень','Play any level') + '</a></aside>';
+      '<aside class="map-mode"><a href="?map=1' + L('','&amp;lang=en') + '">' + L('К кампании','Back to campaign') + '</a></aside>' : '';
     app.innerHTML = header(L('Выбрать уровень','Choose level'), cleared() + L(' из 50 пройдено',' of 50 complete'), 'home', metric()) +
       '<div class="map-content" aria-label="' + L('Все 50 уровней','All 50 levels') + '">' + navigation + mode + sections + '</div>';
   }
@@ -172,11 +175,10 @@
     const last = entries.at(-1).id;
     const cards = entries.map(level => {
       const score = profile.scores[level.id];
-      const open = unlocked(level.id);
       const active = profile.active?.id === level.id;
-      return '<button class="level-card' + (level.id === frontier() || active ? ' current' : '') + '" data-action="level" data-index="' + level.id + '"' +
-        (open ? '' : ' disabled') + ' aria-label="' + L('Уровень ','Level ') + level.id + (score ? L(', звёзд ',', stars ') + score.stars : open ? '' : L(', закрыт',', locked')) + '">' +
-        '<strong>' + level.id + '</strong>' + (open ? medal(score?.stars ?? 0) : icon('lock')) + '</button>';
+      return '<button class="level-card' + (level.id === continueId() || active ? ' current' : '') + '" data-action="level" data-index="' + level.id + '"' +
+        ' aria-label="' + L('Уровень ','Level ') + level.id + (score ? L(', звёзд ',', stars ') + score.stars : '') + '">' +
+        '<strong>' + level.id + '</strong>' + medal(score?.stars ?? 0) + '</button>';
     }).join('');
     return '<section class="map-chapter" aria-labelledby="' + heading + '"><div class="chapter-banner tone-' + chapter.color + '">' +
       '<div><p>' + L('Уровни ','Levels ') + first + '–' + last + '</p><h2 id="' + heading + '" tabindex="-1">' + localized(chapter.name) + '</h2><span>' + localized(chapter.detail) + '</span></div>' +
@@ -239,7 +241,7 @@
   }
 
   function openLevel(id, force = false, restart = false) {
-    if (!unlocked(id)) return;
+    if (!levels[id-1]) return;
     const current = profile.active;
     if (!force && current?.id !== id && current?.moves.length) {
       pendingLevel = id;
@@ -549,7 +551,8 @@
     const after = stars();
     const rewards = palettes.filter(p => p.stars > before && p.stars <= after);
     game.solved = true;
-    game.result = { tier, percent, prior, rewards, spark, combo:combo, newChapter: !prior && level.id % 10 === 0 && level.id < 50 && unlocked(level.id+1), full: cleared() === 50 };
+    game.result = { tier, percent, prior, rewards, spark, combo, full:cleared() === 50 };
+    profile.last = level.id;
     profile.active = null;
     save();
   }
@@ -580,19 +583,17 @@
 
   function showWin() {
     const { level, moves, result } = game;
-    const chapter = chapters[chapterIndex(level.id+1)];
-    const z = result.newChapter ? '<p class="reward">' + L('Открылась глава «','Chapter unlocked · ') + localized(chapter.name) + L('»','') + '</p>' : '';
     const rewards = result.rewards.map(p => '<p class="reward tone-' + p.color + '">' +
       L('Новая палитра «','New palette · ') + localized(p.name) + L('»','') + '</p>').join('');
     const best = result.prior && result.prior.stars > result.tier ? '<p>' + L('Лучший результат — ','Personal best: ') + result.prior.stars + ' ★</p>' : '';
-    const next = level.id < 50 && unlocked(level.id+1);
+    const next = level.id < 50;
     const spark = result.spark ? '<p class="reward">✦ ' + L('Искра получена','Spark earned') + '</p>' : '';
     const streak = result.combo > 1 ? '<p class="reward">' + L('КОМБО','COMBO') + ' ×' + result.combo + '</p>' : '';
     const boost = canPickBonus() && level.id < 50 ? bonusChoices() : profile.bonus ? '<p class="reward">' +
       L('Бонус готов — ','Boost ready: ') + bonusName(profile.bonus) + '</p>' : '';
     modal(result.full ? L('Все уровни пройдены!','All levels complete!') : L('Уровень пройден!','Level complete!'),
       '<div class="win-stars">' + medal(result.tier) + '</div>' + ratingBar(result.percent) + '<p>' + level.words.length + ' / ' + level.words.length +
-      L(' слов · ',' words · ') + moves.length + ' / ' + game.budget.limit + ' ' + moveWord(game.budget.limit) + '</p>' + best + z + rewards + streak + spark + boost,
+      L(' слов · ',' words · ') + moves.length + ' / ' + game.budget.limit + ' ' + moveWord(game.budget.limit) + '</p>' + best + rewards + streak + spark + boost,
       buttonHTML(next ? 'next' : 'map',next ? L('Следующий уровень','Next level') : L('К уровням','Levels')) +
       buttonHTML(next ? 'map' : 'home',next ? L('К уровням','Levels') : L('Главное меню','Main menu'),'secondary'), 'win-dialog', false);
   }
@@ -807,7 +808,7 @@
         app.querySelector('[data-color="' + color + '"]')?.focus();
         break;
       case 'start': openLevel(1); break;
-      case 'continue': openLevel(profile.active?.id ?? frontier()); break;
+      case 'continue': openLevel(continueId()); break;
       case 'level': openLevel(Number(index)); break;
       case 'confirm-level': if (pendingLevel) openLevel(pendingLevel, true); pendingLevel = null; break;
       case 'next': openLevel(game.level.id+1); break;
