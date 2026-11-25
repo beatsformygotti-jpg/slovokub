@@ -9,33 +9,31 @@
   const canMove = value => isTile(value) && !isPinned(value);
 
   function compile(level) {
-    const { w, h, d, words } = level;
-    const plane = w * h;
-    const size = plane * d;
-    const xyz = i => [i % w, Math.floor(i / w) % h, Math.floor(i / plane)];
-    const index = (x, y, z) => z * plane + y * w + x;
+    const { w, h, words } = level;
+    const size = w * h;
+    const xy = i => [i % w, Math.floor(i / w)];
+    const index = (x, y) => y * w + x;
     const neighbors = Array.from({ length: size }, (_, i) => {
-      const [x, y, z] = xyz(i);
-      return [[x-1,y,z],[x+1,y,z],[x,y-1,z],[x,y+1,z],[x,y,z-1],[x,y,z+1]]
-        .filter(([a,b,c]) => a >= 0 && a < w && b >= 0 && b < h && c >= 0 && c < d)
-        .map(([a,b,c]) => index(a,b,c));
+      const [x, y] = xy(i);
+      return [[x-1,y],[x+1,y],[x,y-1],[x,y+1]]
+        .filter(([a,b]) => a >= 0 && a < w && b >= 0 && b < h)
+        .map(([a,b]) => index(a,b));
     });
     const lengths = [...new Set(words.map(word => word.length))].sort((a,b) => b-a);
     const lines = [];
     for (const length of lengths) {
       for (let i = 0; i < size; i++) {
-        const [x,y] = xyz(i);
+        const [x,y] = xy(i);
         if (x + length <= w) lines.push(Array.from({ length }, (_, j) => i+j));
         if (y + length <= h) lines.push(Array.from({ length }, (_, j) => i+j*w));
       }
     }
     const goal = new Set(words);
-    const lift = new Map();
-    for (const [a,b] of level.lifts || []) {
-      lift.set(a,b);
-      lift.set(b,a);
+    const portals = new Map();
+    for (const [a,b] of level.portals || []) {
+      portals.set(a,b);
+      portals.set(b,a);
     }
-    const adjacentFlat = (a,b) => neighbors[a]?.includes(b) && Math.floor(a/plane) === Math.floor(b/plane);
     const matches = (board, found) => {
       const hits = [];
       const occupied = new Set();
@@ -57,7 +55,7 @@
       return hits;
     };
     const legal = (board, from, to) => canMove(board[from]) && board[to] === '' && neighbors[from].includes(to);
-    const canSwap = (board,a,b) => canMove(board[a]) && canMove(board[b]) && adjacentFlat(a,b);
+    const canSwap = (board,a,b) => canMove(board[a]) && canMove(board[b]) && neighbors[a].includes(b);
     const play = (board, found, from, to, kind) => {
       const next = board.slice();
       let landed = to;
@@ -69,7 +67,7 @@
       } else if (kind === undefined && legal(board,from,to)) {
         next[to] = next[from];
         next[from] = '';
-        const exit = lift.get(to);
+        const exit = portals.get(to);
         if (exit !== undefined && exit !== from && next[exit] === '') {
           next[exit] = next[to];
           next[to] = '';
@@ -87,7 +85,7 @@
           spark ||= isSpark(next[id]);
           next[id] = '';
           for (const n of neighbors[id]) {
-            if (next[n] === '%' && adjacentFlat(id,n)) broken.add(n);
+            if (next[n] === '%') broken.add(n);
           }
         }
       }
@@ -100,7 +98,7 @@
         for (const from of neighbors[to]) if (canMove(board[from])) yield [from, to];
       }
     };
-    return { xyz, index, neighbors, plane, lift, matches, play, legal, canSwap, moves, canMove, isTile };
+    return { xy, index, neighbors, portals, matches, play, legal, canSwap, moves, canMove, isTile };
   }
 
   const key = (board, found) => board.join(',') + '|' + [...found].sort().join(',');

@@ -20,18 +20,18 @@
     return language === 'ru' ? base : base + '-en';
   }
   const chapters = [
-    { name: ['Первый свет','First Light'], detail: ['Один этаж','One floor'], color: 'violet', mark: '✦' },
-    { name: ['Второй этаж','Second Floor'], detail: ['Два этажа','Two floors'], color: 'mint', mark: '⬢' },
-    { name: ['Внутри куба','Inside the Cube'], detail: ['Три этажа','Three floors'], color: 'peach', mark: '✳' },
-    { name: ['Кристальный зал','Crystal Hall'], detail: ['Куб 4×4×4','4×4×4 cube'], color: 'blue', mark: '◆' },
-    { name: ['Созвездие слов','Word Constellation'], detail: ['От 5×5×4 до 5×5×5','5×5×4 to 5×5×5'], color: 'pink', mark: '✷' },
+    { name: ['Первые слова','First Words'], detail: ['Короткие слова и первые ходы','Short words and first moves'], color: 'violet' },
+    { name: ['Строчка за строчкой','Line by Line'], detail: ['Поля 3×5 и 3×6','3×5 and 3×6 boards'], color: 'mint' },
+    { name: ['На всю страницу','Full Page'], detail: ['Поля 4×7 и 4×8','4×7 and 4×8 boards'], color: 'peach' },
+    { name: ['Широкие поля','Wider Pages'], detail: ['Поля 4×9 и 5×9','4×9 and 5×9 boards'], color: 'blue' },
+    { name: ['Большая тетрадь','The Big Notebook'], detail: ['Поля 5×10 и 5×11','5×10 and 5×11 boards'], color: 'pink' },
   ];
   const palettes = [
-    { name: ['Лунный','Moonlight'], color: 'violet', stars: 0 },
+    { name: ['Чернила','Ink'], color: 'violet', stars: 0 },
     { name: ['Мята','Mint'], color: 'mint', stars: 12 },
     { name: ['Персик','Peach'], color: 'peach', stars: 28 },
-    { name: ['Иней','Frost'], color: 'blue', stars: 47 },
-    { name: ['Рассвет','Sunrise'], color: 'pink', stars: 67 },
+    { name: ['Голубой','Sky Blue'], color: 'blue', stars: 47 },
+    { name: ['Розовый','Rose'], color: 'pink', stars: 67 },
     { name: ['Золото','Gold'], color: 'gold', stars: 100 },
   ];
   const localized = pair => L(...pair);
@@ -113,7 +113,7 @@
 
   function render() {
     document.documentElement.lang = language;
-    document.title = L('Словокуб','Word Cube');
+    document.title = L('Головоломка из слов','Word Puzzle');
     app.setAttribute('aria-label',document.title);
     for (const btn of document.querySelectorAll('[data-language]')) btn.setAttribute('aria-pressed',String(btn.dataset.language === language));
     app.dataset.screen = screen;
@@ -133,18 +133,15 @@
   }
 
   function renderHome() {
-    const logoTiles = [...L('СЛОВО.КУБ','WORD.CUBE')];
     const active = profile.active?.id;
     const resumable = active || cleared();
+    const sample = [...L('СЛОВО','WORDS')];
     app.innerHTML =
-      '<div class="home-landscape" aria-hidden="true"></div><header class="topbar home-top"><div class="brand-mark">' +
-      '<span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>' + L('Головоломка<br>из слов','Word<br>puzzle') + '</span></div>' +
-      '<div class="top-actions">' + metric() + iconButton('settings', L('Настройки','Settings'), 'more') + '</div></header>' +
-      '<section class="home-hero"><div class="hero-title"><h1>' + document.title + '</h1><p>' + L('Сдвигай кубики. Собирай слова.','Slide cubes. Make words.') + '</p></div>' +
-      '<div class="hero-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>' +
-      '<i class="glint g1">✦</i><i class="glint g2">✧</i><i class="glint g3">✦</i><i class="glint g4">·</i>' +
-      '<div class="hero-grid">' + logoTiles.map((letter,i) => '<span class="hero-tile hero-' + i + (letter === '.' ? ' hero-hole' : '') + '">' + (letter === '.' ? '✧' : letter) + '</span>').join('') + '</div>' +
-      '</div></section>' +
+      '<header class="topbar home-top"><div class="top-actions">' + metric() +
+      iconButton('settings', L('Настройки','Settings'), 'more') + '</div></header>' +
+      '<section class="home-hero"><div class="cover-label"><h1>' + L('Головоломка<br>из слов','Word<br>Puzzle') + '</h1>' +
+      '<p>' + L('Сдвигай буквы. Собирай слова.','Slide letters. Make words.') + '</p></div>' +
+      '<div class="cover-sample" aria-hidden="true">' + sample.map(letter => '<i>' + letter + '</i>').join('') + '</div></section>' +
       '<section class="home-play" aria-label="' + L('Играть','Play') + '">' +
       '<button class="button primary start" data-action="start">' + icon('play') + '<b>' + L('Начать','Start') + '</b></button>' +
       '<div class="secondary-menu"><button class="button secondary" data-action="continue" ' + (resumable ? '' : 'disabled') + '>' + icon('retry') + '<span>' + L('Продолжить','Continue') + (resumable ? '<small>' + L('Уровень ','Level ') + continueId() + '</small>' : '') + '</span></button>' +
@@ -182,7 +179,7 @@
     }).join('');
     return '<section class="map-chapter" aria-labelledby="' + heading + '"><div class="chapter-banner tone-' + chapter.color + '">' +
       '<div><p>' + L('Уровни ','Levels ') + first + '–' + last + '</p><h2 id="' + heading + '" tabindex="-1">' + localized(chapter.name) + '</h2><span>' + localized(chapter.detail) + '</span></div>' +
-      '<span class="chapter-mark" aria-hidden="true">' + chapter.mark + '</span></div>' +
+      '</div>' +
       '<div class="map-progress"><span>' + L('Пройдено в главе','Chapter progress') + '</span><b>' + count + ' / 10</b><progress value="' + count + '" max="10" aria-label="' + L('Пройдено в главе','Chapter progress') + '"></progress></div>' +
       '<div class="level-grid">' + cards + '</div></section>';
   }
@@ -201,7 +198,7 @@
   function renderPalettes() {
     const total = stars();
     app.innerHTML = header(L('Палитры','Palettes'), total + L(' из 150 звёзд',' of 150 stars'), 'return') +
-      '<section class="palette-content"><h1>' + L('Цвет кубиков','Cube colors') + '</h1><p>' + L('Получай звёзды за уровни, чтобы открывать палитры.','Earn stars to unlock new palettes.') + '</p><div class="palette-grid">' + palettes.map(p => {
+      '<section class="palette-content"><h1>' + L('Цвет буквенных фишек','Letter tile colors') + '</h1><p>' + L('Получай звёзды за уровни, чтобы открывать палитры.','Earn stars to unlock new palettes.') + '</p><div class="palette-grid">' + palettes.map(p => {
         const active = p.color === profile.palette;
         return '<button class="palette-card tone-' + p.color + '" data-action="palette" data-color="' + p.color + '" aria-pressed="' + active + '"' +
           (total < p.stars ? ' disabled' : '') + '><span class="swatch"><i>' + L('А','A') + '</i><i>' + L('Б','B') + '</i><i>' + L('В','C') + '</i></span><b>' + localized(p.name) +
@@ -228,14 +225,12 @@
       history.push(next);
       moves.push(pair);
     }
-    const savedLayer = resume?.layer;
-    const layer = Number.isInteger(savedLayer) && savedLayer >= 0 && savedLayer < level.d ? savedLayer : engine.xyz(level.board.indexOf(''))[2];
-    return { level, engine, budget:E.movesBudget(level), history, moves, hints: Math.max(0, Number(resume?.hints) || 0), layer, bonus, solved: false, result: null, trace: null };
+    return { level, engine, budget:E.movesBudget(level), history, moves, hints: Math.max(0, Number(resume?.hints) || 0), bonus, solved: false, result: null, trace: null };
   }
 
   function saveGame() {
     if (game && !game.solved) profile.active = {
-      id:game.level.id, layout:game.level.revision || 1, moves:game.moves, layer:game.layer, hints:game.hints, bonus:game.bonus
+      id:game.level.id, layout:game.level.revision || 1, moves:game.moves, hints:game.hints, bonus:game.bonus
     };
     save();
   }
@@ -295,7 +290,7 @@
     combo: ['Комбо','Собери по слову двумя ходами подряд.','Combo','Complete a word on two moves in a row.'],
     pinned: ['Закреплённая буква','Собери слово вокруг буквы с замком. Она сгорит вместе со словом.','Pinned letter','Build a word around the locked letter. It clears with the word.'],
     fragile: ['Хрупкая стенка','Собери слово вплотную к треснувшему камню. Он рассыплется.','Cracked wall','Complete a word against a cracked wall to break it.'],
-    lift: ['Лифт','Сдвинь букву на отмеченную клетку. Лифт перенесёт её, если выход свободен.','Lift','Slide a letter onto a lift. It travels if the other end is empty.'],
+    portal: ['Портал','Сдвинь букву на клетку со стрелкой. Если вторая отмеченная клетка свободна, буква окажется там.','Portal','Slide a letter onto an arrow. If the other marked cell is empty, the letter lands there.'],
     spark: ['Искра','Собери слово с отмеченной буквой. Пять искр дают бонус на следующий уровень.','Spark','Clear the marked letter. Five sparks earn a boost for the next level.'],
   };
   function ruleTip(rule) {
@@ -319,8 +314,6 @@
       return L('Нажми на «' + letter + '», затем на пустую клетку. Получится «' + l.words[0] + '».',
         'Tap ' + letter + ', then the empty cell to make ' + l.words[0] + '.');
     }
-    if (l.id === 11) return L('Выбери букву, открой соседний этаж и нажми на подсвеченную клетку.',
-      'Select a letter, open the next floor, then tap the highlighted cell.');
     if (l.intro) return l.intro;
     const tip = ruleTip(l.mechanic);
     if (tip) return '<b>' + tip[0] + '</b> ' + tip[1];
@@ -347,72 +340,53 @@
   }
 
   function renderGame() {
-    const { level:l, layer, engine } = game;
+    const { level:l, engine } = game;
     const { board, found } = currentState();
-    const offset = layer * engine.plane;
-    const cells = board.slice(offset, offset + engine.plane);
     const canShift = to => selected !== null && engine.legal(board,selected,to);
     const firstCue = l.id <= 2 && !game.moves.length ? l.solution[0] : null;
     const cue = hintMove || firstCue;
     const feature = l.mechanic && !game.history.some(state => l.mechanic === 'fragile' ? state.broken?.length :
-      l.mechanic === 'lift' ? state.port : l.mechanic === 'spark' ? state.spark :
+      l.mechanic === 'portal' ? state.port : l.mechanic === 'spark' ? state.spark :
       l.mechanic === 'pinned' ? !state.board.some(E.isPinned) : false);
-    const currentLesson = !game.moves.length || (feature && ['lift','spark'].includes(l.mechanic)) ? lesson() : '';
+    const currentLesson = !game.moves.length ? lesson() : '';
     const guide = message || currentLesson;
-    const size = l.w + '×' + l.h + (l.d > 1 ? '×' + l.d : '');
+    const areaClass = currentLesson ? 'board-area with-lesson' : 'board-area';
+    const size = l.w + '×' + l.h;
     const levelName = L('Уровень ','Level ') + l.id;
+    const sparks = l.id >= 29 ? sparkMeter() : '';
     const gameTop = '<header class="topbar game-top">' + iconButton('home',L('Главное меню','Main menu'),'back') +
       '<div class="top-title"><strong>' + levelName + '</strong><small>' + size + '</small></div>' +
-      '<div class="game-right"><span class="move-count" aria-label="' + L('Осталось ходов ','Moves left ') + movesLeft() + '">' +
+      '<div class="game-right">' + sparks + '<span class="move-count" aria-label="' + L('Осталось ходов ','Moves left ') + movesLeft() + '">' +
       '<small>' + L('Осталось','Moves left') + '</small><b>' + movesLeft() + '</b></span>' +
       iconButton('pause',L('Пауза','Pause'),'more') + '</div></header>';
-    const sparks = l.id >= 29 ? '<div class="arena-sparks">' + sparkMeter() + '</div>' : '';
-    const layers = l.d > 1 ? '<div class="layer-tabs many-layers" role="group" aria-label="' + L('Этажи куба','Cube floors') + '">' +
-      Array.from({ length:l.d }, (_,i) => {
-        const start = i * engine.plane;
-        const content = board.slice(start,start+engine.plane);
-        const featureHere = feature && content.some(value => (l.mechanic === 'spark' && E.isSpark(value)) ||
-          (l.mechanic === 'pinned' && E.isPinned(value)) || (l.mechanic === 'fragile' && value === '%'));
-        const highlight = cue?.some(cell => engine.xyz(cell)[2] === i) || featureHere ? ' layer-hint' : '';
-        const available = selected !== null && engine.neighbors[selected].some(cell => engine.xyz(cell)[2] === i && canShift(cell));
-        const hasLift = [...engine.lift.keys()].some(cell => engine.xyz(cell)[2] === i);
-        return '<button class="layer-tab' + highlight + (available && i !== layer ? ' layer-candidate' : '') + '" data-action="layer" data-index="' + i + '" aria-pressed="' + (layer === i) +
-          '" aria-label="' + L('Этаж ','Floor ') + (i+1) + '"><span class="mini-grid" aria-hidden="true" style="--mini-w:' + l.w + '">' +
-          content.map(c => '<i class="' + (E.isWall(c) ? 'mini-stone' : c ? 'mini-filled' : '') + '"></i>').join('') +
-          '</span><b>' + (i+1) + '</b>' + (hasLift ? '<span class="layer-lift" aria-hidden="true">↕</span>' : '') + '</button>';
-      }).join('') + '</div>' : '';
     const boardHtml = '<div class="board-chassis"><div class="board-grid" data-board aria-label="' + L('Игровое поле','Puzzle board') +
-      '" style="--cols:' + l.w + ';--rows:' + l.h + '">' + cells.map((value,i) => {
-        const id = i + offset;
+      '" style="--cols:' + l.w + ';--rows:' + l.h + '">' + board.map((value,id) => {
         const tile = engine.isTile(value);
         const letter = tile ? E.letter(value) : '';
-        const liftEnd = engine.lift.get(id);
-        const port = liftEnd !== undefined;
+        const port = engine.portals.has(id);
         const wall = E.isWall(value);
         const demoMarker = feature && ((l.mechanic === 'pinned' && E.isPinned(value)) || (l.mechanic === 'fragile' && value === '%') ||
-          (l.mechanic === 'lift' && port) || (l.mechanic === 'spark' && E.isSpark(value)));
+          (l.mechanic === 'portal' && port) || (l.mechanic === 'spark' && E.isSpark(value)));
         const classes = ['cell',tile ? 'tile tile-' + letterColor(letter) : wall ? 'stone' : 'vacant',
           engine.canMove(value) && engine.neighbors[id].some(n => board[n] === '') ? 'movable' : '',
           id === selected ? 'selected' : '', canShift(id) ? 'candidate' : '', cue?.[0] === id && selected !== id ? 'hint-from' : '', cue?.[1] === id && selected === cue[0] ? 'hint-to' : '',
           E.isPinned(value) ? 'pinned' : '', value === '%' ? 'fragile' : '', E.isSpark(value) ? 'spark-tile' : '',
-          port ? 'lift-port' : '', demoMarker ? 'learn-item' : '',
+          port ? 'portal-cell' : '', demoMarker ? 'learn-item' : '',
           bonusMode && (game.bonus === 'break' ? wall : selected !== null && engine.canSwap(board, selected, id)) ? 'bonus-target' : '',
         ].filter(Boolean).join(' ');
-        const [x,y] = engine.xyz(id);
-        const destination = port ? engine.xyz(liftEnd)[2]+1 : 0;
-        const label = symbolFor(value) + (port ? L(', лифт на этаж ', ', lift to floor ') + destination : '') +
+        const [x,y] = engine.xy(id);
+        const label = symbolFor(value) + (port ? L(', портал', ', portal') : '') +
           L(', ряд ', ', row ') + (y+1) + L(', столбец ', ', column ') + (x+1);
         const badge = E.isPinned(value) ? '▣' : E.isSpark(value) ? '✦' : value === '%' ? 'ϟ' : '';
         return '<button class="' + classes + '" type="button" data-cell="' + id + '" aria-label="' + label + '"' +
           (selected === id ? ' aria-pressed="true"' : '') + '><span aria-hidden="true">' + (tile ? letter : wall ? '' : '·') + '</span>' +
           (badge ? '<i class="tile-mark" aria-hidden="true">' + badge + '</i>' : '') +
-          (port ? '<i class="lift-mark" aria-hidden="true">↕' + destination + '</i>' : '') + '</button>';
+          (port ? '<i class="portal-mark" aria-hidden="true">⇄</i>' : '') + '</button>';
       }).join('') + '<div class="effects" aria-hidden="true"></div></div>' +
       (combo > 1 ? '<div class="combo-pop" aria-live="polite">' + L('КОМБО','COMBO') + ' ×' + combo + '</div>' : '') + '</div>';
     app.innerHTML = gameTop + '<div class="game-content" data-level="' + l.id + '">' +
-      (layers ? '<div class="arena-floors">' + layers + '</div>' : '') +
-      '<section class="board-area" style="--board-ratio:' + (l.w/l.h) + '" aria-label="' + L('Игровая зона','Play area') +
-      '">' + sparks + boardHtml + '<p class="arena-message" id="guide">' + guide + '</p></section></div>';
+      '<section class="' + areaClass + '" style="--board-ratio:' + (l.w/l.h) + '" aria-label="' + L('Игровая зона','Play area') +
+      '"><div class="board-space">' + boardHtml + '</div><p class="arena-message" id="guide">' + guide + '</p></section></div>';
   }
 
   function letterColor(letter) {
@@ -468,15 +442,12 @@
 
   function selectionGuide() {
     if (selected === null) return '';
-    const { engine,layer } = game;
+    const { engine } = game;
     const { board } = currentState();
     const available = engine.neighbors[selected].filter(cell => engine.legal(board,selected,cell));
     if (!available.length) return L('Рядом с этой буквой нет пустой клетки.','There is no empty cell next to this letter.');
-    if (available.some(cell => engine.xyz(cell)[2] === layer)) {
-      return game.level.id <= 2 && !game.moves.length ?
-        L('Теперь нажми на подсвеченную пустую клетку.','Now tap the highlighted empty cell.') : '';
-    }
-    return L('Открой подсвеченный этаж и нажми на пустую клетку.','Open a highlighted floor and tap the empty cell.');
+    return game.level.id <= 2 && !game.moves.length ?
+      L('Теперь нажми на подсвеченную пустую клетку.','Now tap the highlighted empty cell.') : '';
   }
 
   function updateGuide(text) {
@@ -494,27 +465,25 @@
     const next = engine.play(board, found, from, to, kind);
     if (!next) return;
     const moved = engine.isTile(board[from]) ? E.letter(board[from]) : '';
-    const oldLayer = game.layer;
     const streak = next.hits.length ? (currentState().streak || 0) + 1 : 0;
     next.streak = streak;
     combo = level.id >= 6 ? streak : 0;
     game.history.push(next);
     game.moves.push(kind ? [from,to,kind] : [from,to]);
-    game.layer = engine.xyz(next.landed)[2];
     selected = null;
     hintMove = null;
     bonusMode = false;
     const names = next.hits.map(hit => hit.word).join(', ');
     message = '';
     if (names) tell(L('Сгорело — ','Cleared: ') + names);
-    else if (next.port) tell(L('Лифт доставил букву на этаж ','Lift delivered the letter to floor ') + (game.layer+1));
+    else if (next.port) tell(L('Портал перенёс букву.','The portal moved the letter.'));
     const win = next.found.length === level.words.length;
     if (win) recordWin();
     else saveGame();
     renderGame();
     if (byKeyboard) focusCell(next.landed);
     playSound(next.hits.length ? 'burn' : 'slide');
-    animateMove(from, next.landed, moved, oldLayer, next.hits, next.broken, kind);
+    animateMove(from, next.landed, moved, next.hits, next.broken, kind || next.port);
     if (combo > 1) {
       const pop = app.querySelector('.combo-pop');
       setTimeout(() => pop?.remove(),1050);
@@ -592,7 +561,7 @@
       buttonHTML(next ? 'map' : 'home',next ? L('К уровням','Levels') : L('Главное меню','Main menu'),'secondary'), 'win-dialog', false);
   }
 
-  function animateMove(from, to, letter, oldLayer, hits, broken, kind) {
+  function animateMove(from, to, letter, hits, broken, special) {
     if (reducedMotion.matches) return;
     const host = app.querySelector('.effects');
     const box = host.getBoundingClientRect();
@@ -616,7 +585,7 @@
       });
       return;
     }
-    if (kind || oldLayer !== game.layer) return;
+    if (special) return;
     const moving = clone(to, letter, 'slide-fx tile-' + letterColor(letter));
     if (!moving) return;
     app.querySelector('[data-cell="' + to + '"]').classList.add('slide-target');
@@ -628,11 +597,10 @@
 
   function undo() {
     if (busy || game.solved || !game.moves.length) return;
-    const [from] = game.moves.pop();
+    game.moves.pop();
     game.history.pop();
     combo = 0;
     bonusMode = false;
-    game.layer = game.engine.xyz(from)[2];
     selected = null;
     hintMove = null;
     message = L('Ход отменён.','Move undone.');
@@ -655,23 +623,12 @@
     }
     hintMove = move;
     selected = null;
-    game.layer = game.engine.xyz(move[0])[2];
     message = L('Сначала нажми на «' + E.letter(board[move[0]]) + '», затем выбери клетку.',
       'Tap ' + E.letter(board[move[0]]) + ' first, then choose the empty cell.');
     game.hints++;
     saveGame();
     renderGame();
     tell(message);
-  }
-
-  function switchLayer(layer) {
-    if (busy || game.solved || game.layer === layer || layer < 0 || layer >= game.level.d) return;
-    game.layer = layer;
-    if (bonusMode) selected = null;
-    message = selectionGuide();
-    saveGame();
-    renderGame();
-    tell(L('Этаж ','Floor ') + (layer+1));
   }
 
   function playSound(kind) {
@@ -724,13 +681,12 @@
 
   function showHelp() {
     const rules = [
-      [L('Сдвигай кубики','Slide the cubes'),L('Сначала нажми на букву. Затем нажми на соседнюю пустую клетку.','Tap a letter first. Then tap an adjacent empty cell.')],
-      [L('Собирай слова','Make words'),L('Слова читаются слева направо или сверху вниз на одном этаже. Готовое слово освобождает клетки.','Read left to right or top to bottom on one floor. Completed words clear their cells.')],
-      [L('Перемещай буквы между этажами','Move between floors'),L('Выбери букву, открой соседний этаж и нажми на подсвеченную пустую клетку.','Select a letter, open an adjacent floor, then tap the highlighted empty cell.')],
+      [L('Сдвигай буквы','Slide letters'),L('Сначала нажми на букву. Затем нажми на соседнюю пустую клетку.','Tap a letter first. Then tap an adjacent empty cell.')],
+      [L('Собирай слова','Make words'),L('Слова читаются слева направо или сверху вниз. Готовое слово освобождает клетки.','Read left to right or top to bottom. Completed words clear their cells.')],
     ];
     if (game) {
       const id = game.level.id;
-      for (const [rule, first] of Object.entries({ combo:6, pinned:7, fragile:12, lift:22, spark:29 })) {
+      for (const [rule, first] of Object.entries({ combo:6, pinned:7, fragile:12, portal:22, spark:29 })) {
         if (id >= first) rules.push(ruleTip(rule));
       }
     }
@@ -813,7 +769,6 @@
       case 'level': openLevel(Number(index)); break;
       case 'confirm-level': if (pendingLevel) openLevel(pendingLevel, true); pendingLevel = null; break;
       case 'next': openLevel(game.level.id+1); break;
-      case 'layer': switchLayer(Number(index)); break;
       case 'undo': if (dialog.open) dialog.close(); undo(); break;
       case 'undo-limit': dialog.close(); undo(); break;
       case 'hint': if (dialog.open) dialog.close(); hint(); break;
@@ -821,7 +776,7 @@
         if (busy || game.solved) break;
         if (!game.moves.length && !game.hints) { updateGuide(L('Уровень уже в начальной позиции.','The board is at its starting position.')); break; }
         modal(L('Начать уровень заново?','Restart this level?'),
-          '<p>' + L('Все кубики вернутся на свои места.','All cubes will return to their starting positions.') + '</p>',
+          '<p>' + L('Все буквы вернутся на свои места.','All letters will return to their starting positions.') + '</p>',
           buttonHTML('confirm-restart',L('Начать заново','Restart')) + buttonHTML('close',L('Отмена','Cancel'),'secondary'));
         break;
       case 'confirm-restart': openLevel(game.level.id,true,true); break;
@@ -845,9 +800,9 @@
     if (!direction) return;
     event.preventDefault();
     const { engine, level } = game;
-    const [x,y,z] = engine.xyz(Number(event.target.dataset.cell));
+    const [x,y] = engine.xy(Number(event.target.dataset.cell));
     const a = x+direction[0], b = y+direction[1];
-    if (a >= 0 && b >= 0 && a < level.w && b < level.h) focusCell(engine.index(a,b,z));
+    if (a >= 0 && b >= 0 && a < level.w && b < level.h) focusCell(engine.index(a,b));
   });
   render();
 })();
